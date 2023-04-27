@@ -1,18 +1,27 @@
 package edu.kh.comm.member.controller;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.SessionAttributes;
+import org.springframework.web.bind.support.SessionStatus;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import edu.kh.comm.member.model.service.MemberService;
 import edu.kh.comm.member.model.vo.Member;
@@ -21,7 +30,7 @@ import edu.kh.comm.member.model.vo.Member;
 
 // class : 객체를 만들기위한 설계도(붕어빵 기계...?)
 // -> 객체로 생성 되어야 기능 수행이 가능함(new연산자 사용)
-// --> IOC(제어의 역전, 객체 생명주기를 스피링이 관리)를 이용하여 객체 생성
+// --> IOC(제어의 역전, 객체 생명주기를 스프링이 관리)를 이용하여 객체 생성
 // ** 이 때, 스프링이 생성한 객체를 bean 이라고 한다 **
 
 // bean 등록 == 스프링이 객체로 만들어서 가지고 있어라
@@ -36,6 +45,8 @@ import edu.kh.comm.member.model.vo.Member;
 //	   localhost:8080/comm/member/login
 //     localhost:8080/comm/member/singUp 등등 다 처리 한다는 말~
 
+@SessionAttributes({"loginMember"}) // Model에 추가된 값의 key와 어노테이션에 작성된 값이 같으면
+											   // 해당 값을 session scope로 이동시키는 역할
 public class MemberController {
 	
 	// 필드에 로거 만들기
@@ -144,22 +155,163 @@ public class MemberController {
 	// - VO 필드에 대한 Setter
 	
 	@PostMapping("/login")
-	public String login(@ModelAttribute Member inputMember) {
+	public String login(@ModelAttribute Member inputMember,
+						Model model,
+						RedirectAttributes ra,
+						HttpServletResponse resp,
+						HttpServletRequest req,
+						@RequestParam(value="saveId", required=false) String saveId) {
+		
+		// 커맨드 객체
+		// @ModelAttribute 생략된 상태에서 파라미터가 필드에 세팅된 객체
+		
 		
 		logger.info("로그인 기능 수행됨");
 		
 		// 아이디, 비밀번호가 일치하는 회원 정보를 조회하는 Service 호출 후 결과 반환 받기
 		Member loginMember = service.login(inputMember);
 		
-		return "redirect:/";
+		/* Model : 데이터를 맵 형식(K:V) 형태로 담아 전달하는 용도의 객체
+		 * -> request, session을 대체하는 객체
+		 * 
+		 * - 기본 scope : request
+		 * - session scope로 변환하고 싶은 경우 클래스 레벨로 @SessionAttributes를 작성하면 된다.(저~~ 위에 작성함)
+		 * 
+		 * @SessionAttributes 미작성 -> request scope
+		 * 
+		 * */
+		
+		if(loginMember != null) { // 로그인 성공 
+			model.addAttribute("loginMember", loginMember); // == req.setAttribute("loginMember", loginMember);
+			
+			// 로그인 성공 시 무조건 쿠키 생성
+			// 단, 아이디 저장 체크 여부에 따라서 쿠키의 유지시간을 조정
+			
+			Cookie cookie = new Cookie("saveId", loginMember.getMemberEmail());
+			
+			if(saveId != null) { // 아이디 저장 체크 되었을 때
+				
+				cookie.setMaxAge(60 * 60 * 24 * 365); // 초단위 지정(1년)
+				
+				
+			} else { // 체크되지 않았을 때
+				
+				cookie.setMaxAge(0); // 0초 -> 생성되자마자 사라짐 == 쿠키삭제
+				
+			}
+			
+			// 쿠키가 적용될 범위(경로) 지정
+			cookie.setPath(req.getContextPath()); // 얘 아래에서는 전부 쿠키를 적용시키겠다는 뜻..?
+			// /comm이 프로젝트 아래는 다 지정하겠다는건데 프로젝트이름은 언제든 바뀔수 있으니까 그냥 최상위 경로를 지정해준것!
+			
+			// 쿠키를 응답 시 클라이언트에게 전달
+			resp.addCookie(cookie);
+			
+		} else {
+			// model.addAttribute("message", "아이디 또는 비밀번호가 일치하지 않습니다."); // footer.jsp에 message객체? 있음
+			// 메세지는 일회성이니까 model사용보다 밑에방법으로!
+			
+			ra.addFlashAttribute("message", "아이디 또는 비밀번호가 일치하지 않습니다.");
+			// 이거 하고나면 메세지에 세션제거 어쩌구 지워도됨!
+			// addFlashAttribute는 컨트롤러를 꼭 거쳐야 하기 때문에 jspforward가 필요함
+			
+			
+			// redirect 시에도 request scope로 세팅된 데이터가 유지될 수 있도록 하는 방법을 Spring에서 제공해줌
+			// -> RedirectAttributes 객체 (컨트롤러 매개변수에 작성하면 사용 가능)
+		}
+
+		return "redirect:/"; //세션스코프니까 아무리 리다이렉트해도 계속 유지됨(로그인정보가..), 리퀘스트면 날라감
 	}
 	
+	// 로그아웃
+	@GetMapping("/logout") // 멤버하위부터 작성
+	public String logou(/*HttpSession session*/ SessionStatus status) {
+		// 로그아웃 == 세션을 없애는 것
+		
+		// * @SessionAttributes을 이용해서 session scope에 배치된 데이터는
+		//   SessionStatus라는 별도 객체를 이용해야만 없앨 수 있다.
+		
+		logger.info("로그아웃 수행됨");
+		
+		// session.invalidate(); 기존 세션 무효화 방식으로는 X
+		
+		status.setComplete(); // 세션이 할 일이 완료됨 -> 없앰
+		
+		return "redirect:/"; // 메인페이지 재요청
+	}
+
 	
 	// 회원 가입 화면 전환
-	@GetMapping("/signUp")   // Get방식 : /comm/member/signUp 요
+	@GetMapping("/signUp")   // Get방식 : /comm/member/signUp 요청
 	public String signUp() {
 		
 		return "member/signUp";
 	}
+	
+	
+	// 이메일 중복 검사
+	@ResponseBody // ajax 응답 시 사용!
+	@GetMapping("/emailDupCheck") // member하위에 들어오는 애만 적으면 됨
+	public int emailDupCheck( String memberEmail ) { // 파라미터 key값과 저장하려는 변수명이 같으면 ()안에 앞에 @RequestParam("memberEmail") 생략 가능!
+		
+		// int result = service.emailDupCheck(memberEmail); return에 작성
+		
+		// 컨트롤러에서 반환되는 값은 forward 또는 redirect를 위한 경로인 경우가 일반적
+		// -> 반환되는 값은 경로로 인식됨
+		
+		// -> 이를 해결하기 위한 어노테이션 @ResponseBody 가 존재.
+		
+		// @ResponseBody : 반환되는 값을 응답의 몸통(body)에 추가하여 이전 요청 주소로 돌아감
+		// -> 컨트롤러에서 반환되는 값이 경로가 아닌 "값 자체"로 인식됨.
+		
+		return service.emailDupCheck(memberEmail);
+	}
+	
+	// 닉네임 중복 검사
+	@ResponseBody
+	@GetMapping("/nicknameDupCheck")
+	public int nicknameDupCheck(String memberNickname) {
+		return service.nicknameDupCheck(memberNickname);
+	}
+	
+	// 회원 가입
+	@PostMapping("/signUp")
+	public String signUpPost(Member inputMember) {
+		int result = service.signUp(inputMember);
+		return "redirect:/";
+	}
+	
+	
+	// 회원 1명 정보 조회(ajax)
+	
+	
+	
+	
+	// 회원 목록 조회(ajax)
+	
+	
+	/* 스프링 예외 처리 방법 (3가지, 중복 사용 가능)
+	 * 
+	 * 1 순위 : 메서드 별로 예외처리 (try-catch / throws)
+	 * 
+	 * 2 순위 : 하나의 컨트롤러에서 발생하는 예외를 모아서 처리, 보통 해당 컨트롤러 맨 아래 작성
+	 * 			-> @ExceptionHandler (메서드에 작성)
+	 * 
+	 * 3 순위 : 전역(웹 애플리케이션)에서 발생하는 예외를 모아서 처리, 예외처리 컨트롤러를 만들어서 작성
+	 * 			-> @ControllerAdvice (클래스에 작성)
+	 * */
+	
+	// 회원 컨트롤러에서 발생하는 모든 예외를 모아서 처리(2순위)
+//	@ExceptionHandler(Exception.class)
+//	public String exceptionHandler(Exception e, Model model) { // Model == 데이터 전달용 객체
+//		e.printStackTrace();
+//		
+//		model.addAttribute("errorMessage", "서비스 이용 중 문제가 발생했습니다.");
+//		model.addAttribute("e", e);
+//		
+//		return "common/error";
+//		
+//	}
+	
 	
 }

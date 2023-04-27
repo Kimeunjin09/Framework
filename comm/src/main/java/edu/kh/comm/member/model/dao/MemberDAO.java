@@ -31,10 +31,34 @@ public class MemberDAO {
 		//logger.debug(count + ""); // 문자열로 해야 debug가 먹혀서 + ""해주는 거!
 		
 		// 1행 조회(파라미터 O) 방법
-		String memberNickname = sqlSession.selectOne("memberMapper.test2", inputMember.getMemberEmail());
-		logger.debug(memberNickname + "");
+		// String memberNickname = sqlSession.selectOne("memberMapper.test2", inputMember.getMemberEmail());
+		// logger.debug(memberNickname + "");
 		
-		return null;
+		// 1행 조회(파라미터가 VO인 경우)
+		// 전화번호니까 string
+		// String memberTel = sqlSession.selectOne("memberMapper.test3", inputMember); // inputMember안에는 memberEmail, memberPw있음
+		
+		// logger.debug(memberTel);
+		
+		// 1행 조회(파라미터가 VO, 반환되는 결과도 VO)
+		Member loginMember = sqlSession.selectOne("memberMapper.login", inputMember);
+		
+		return loginMember;
+	}
+
+	// 이메일 중복검사 DAO, 파람:emberEmail, 리턴:result
+	public int emailDupCheck(String memberEmail) {
+		return sqlSession.selectOne("memberMapper.emailDupCheck", memberEmail);
+	}
+
+	// 닉네임 중복검사 DAO
+	public int nicknameDupCheck(String memberNickname) {
+		return sqlSession.selectOne("memberMapper.nicknameDupCheck", memberNickname);
+	}
+
+	// 회원 가입
+	public int signUp(Member inputMember) {
+		return sqlSession.insert("memberMapper.signUp", inputMember);
 	}
 	
 }

@@ -20,6 +20,15 @@ public interface MemberService {
 
 	// 로그인 서비스, 파람:inputMember, 리턴:loginMember
 	public abstract Member login(Member inputMember);
+
+	// 이메일 중복 검사, 파람:memberEmail, 리턴:result
+	public abstract int emailDupCheck(String memberEmail);
+
+	// 닉네임 중복 검사
+	public abstract int nicknameDupCheck(String memberNickname);
+
+	// 회원 가입
+	public abstract int signUp(Member inputMember);
 	
 	
 	
