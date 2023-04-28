@@ -144,10 +144,23 @@
 		AND SECESSION_FL = 'N'
  	</select>
  	
- 	<!-- 회원 가입 -->
+ 	<!-- 회원 가입 
  	<insert id="signUp" parameterType="member">
  		INSERT INTO MEMBER_S
  		VALUES(SEQ_MEMBER_NO.NEXTVAL, #{memberEmail}, #{memberPw}, #{memberNickname}, #{memberTel}, DEFAULT, DEFAULT, DEFAULT, DEFAULT)
+ 	</insert> -->
+ 	
+ 	<!-- 회원가입 풀이 -->
+ 	<insert id="signUp" parameterType="member"> <!-- member는 mybatis-config에서 불러온거 -->
+ 		INSERT INTO MEMBER_S VALUES(
+ 			SEQ_MEMBER_NO.NEXTVAL,
+ 			#{memberEmail},
+ 			#{memberPw},
+ 			#{memberNickname},
+ 			#{memberTel}, 
+ 			#{memberAddress}, 
+ 			DEFAULT, DEFAULT, DEFAULT)
  	</insert>
+ 
 
 </mapper>

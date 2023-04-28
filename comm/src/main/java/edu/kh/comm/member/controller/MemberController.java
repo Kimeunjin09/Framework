@@ -275,11 +275,58 @@ public class MemberController {
 	}
 	
 	// 회원 가입
-	@PostMapping("/signUp")
-	public String signUpPost(Member inputMember) {
+//	@PostMapping("/signUp")
+//	public String signUpPost(Member inputMember) {
+//		int result = service.signUp(inputMember);
+//		return "redirect:/";
+//	}
+	
+	// 회원가입 풀이
+	@PostMapping("/signUp") // requestMapping으로 member까지는 잡아주고 있으니까 /signUp만 작성
+	public String signUp(Member inputMember, // 앞에 modelAttribute 생략
+						 String[] memberAddress,
+				         RedirectAttributes ra // 메세지 담을거라서 사용 redirect될때 잠깐 세션에 올렸다가 리다이렉트로 다시돌아옴
+			) {
+		
+		// 커맨드 객체를 이용해서 입력된 회원 정보를 잘 받아옴
+		// 단, 같은 name을 가진 주소가 하나의 문자열로 합쳐서 세팅되어 들어옴.
+		// -> 도로명 주소에 "," 기호가 포함되는 경우가 있어 이를 구분자로 사용할 수 없다.
+		
+		inputMember.setMemberAddress(String.join(",,", memberAddress)); // 커맨드객체인 인풋멤버에 담아주기
+		// String.join("구분자", 배열)
+		// 배열을 하나의 문자열로 합치는 메서드
+		// 값 중간중간에 구분자가 들어가서 하나의 문자열로 합쳐줌
+		// [a,b,c] -> join진행 -> "a,,b,,c"
+		
+		
+		// 주소값은 회원가입 시 필수값이 아니라 값이 없으면 ,, ,, 만 출력되므로 처리해주기
+		if(inputMember.getMemberAddress().equals(",,,,")) { // 주소가 입력되지 않은 경우
+			
+			inputMember.setMemberAddress(null); // null로 변환
+			
+		}
+		
+		// 회원 가입 서비스 호출하기
 		int result = service.signUp(inputMember);
-		return "redirect:/";
+		
+		// 메세지랑 redirect할 페이지 다르게 해주기
+		String message = null;
+		String path = null;
+		
+		if(result > 0 ) { // 회원가입 성공
+			message = "회원 가입 성공";
+			path = "redirect:/"; // 메인페이지
+			
+		} else { // 실패
+			message = "회원 가입 실패";
+			path = "redirect:/member/signUp"; // 회원가입 페이지
+		}
+		
+		ra.addFlashAttribute("message", message); // 이렇게 담아줘야함.....
+		
+		return path;
 	}
+	
 	
 	
 	// 회원 1명 정보 조회(ajax)
@@ -288,6 +335,11 @@ public class MemberController {
 	
 	
 	// 회원 목록 조회(ajax)
+	
+	
+	
+	
+	
 	
 	
 	/* 스프링 예외 처리 방법 (3가지, 중복 사용 가능)

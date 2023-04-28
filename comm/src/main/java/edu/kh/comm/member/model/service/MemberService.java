@@ -27,7 +27,7 @@ public interface MemberService {
 	// 닉네임 중복 검사
 	public abstract int nicknameDupCheck(String memberNickname);
 
-	// 회원 가입
+	// 회원 가입, 풀이랑 동일
 	public abstract int signUp(Member inputMember);
 	
 	
