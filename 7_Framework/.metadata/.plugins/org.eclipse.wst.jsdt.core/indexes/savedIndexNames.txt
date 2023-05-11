@@ -1,6 +1,0 @@
-INDEX VERSION 1.4+/Users/gim-eunjin/workspace/7_Framework/.metadata/.plugins/org.eclipse.wst.jsdt.core/indexes
-1018102477.index
-2004664538.index
-217813815.index
-1449165840.index
-850339104.index
